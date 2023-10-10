@@ -163,7 +163,7 @@ function addRole() {
             }
         },
         {
-            name: "department",
+            name: "department_id",
             type: "list",
             message: "Which department does the role belong to?",
             choices: departments
@@ -171,7 +171,7 @@ function addRole() {
     ]).then(function (response) {
         db.query("INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)", [response.title, response.salary, response.department], function (err, data) {
             if (err) throw err;
-            console.log(`Adeed ${response.title} to the database`);
+            console.log(`Added ${response.title} to the database`);
 
             db.query(`SELECT * FROM role`, (err, result) => {
                 if (err) {
@@ -227,3 +227,36 @@ function addEmployee() {
         })
     });
 };
+
+// Update employee role
+function updateEmployeeRole() {
+    inquirer.prompt([
+        {
+            name: "first_name",
+            type: "list",
+            message: "Which employee's role do you want to update?",
+            choices: employees
+        },
+        {
+            name: "role_id",
+            type: "list",
+            message: "Which role do you want to assign the selected employee?",
+            choices: roles
+        }
+    ]).then(function (response) {
+        db.query("UPDATE employee SET role_id = ? WHERE first_name = ?", [response.role_id, response.first_name], function (err, data) {
+            if (err) throw err;
+            console.log("Updated employee's role");
+
+            db.query(`SELECT * FROM employee`, (err, result) => {
+                if (err) {
+                    res.status(500).json({ error: err.message })
+                    startPrompt();
+                }
+                console.table(result);
+                startPrompt();
+            });
+        })
+    });
+};
+
