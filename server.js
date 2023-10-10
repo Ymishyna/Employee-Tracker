@@ -185,3 +185,45 @@ function addRole() {
     });
 };
 
+// Add employees
+function addEmployee() {
+    inquirer.prompt([
+        {
+            name: "first_name",
+            type: "input",
+            message: "What is the employee's first name?"
+        },
+        {
+            name: "last_name",
+            type: "input",
+            message: "What is the employee's last name?"
+        },
+        {
+            name: "role_id",
+            type: "list",
+            message: "What is the employee's role?",
+            choices: roles
+        },
+        {
+            name: "manager_id",
+            type: "list",
+            message: "Whi is the employee's manager?",
+            choices: employees
+        }
+
+    ]).then(function (response) {
+        db.query("INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)", [response.first_name, response.last_name, response.role_id, response.manager_id], function (err, data) {
+            if (err) throw err;
+            console.log(`Added ${response.first_name + response.last_name} to the database`);
+
+            db.query(`SELECT * FROM employee`, (err, result) => {
+                if (err) {
+                    res.status(500).json({ error: err.message })
+                    startPrompt();
+                }
+                console.table(result);
+                startPrompt();
+            });
+        })
+    });
+};
