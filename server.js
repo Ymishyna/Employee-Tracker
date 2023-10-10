@@ -124,21 +124,64 @@ function addDepartment() {
         }
     ]).then((answer) => {
 
-    const sql = `INSERT INTO department (department_name)
+        const sql = `INSERT INTO department (department_name)
                 VALUES (?)`;
-    const params = [answer.department_name];
-    db.query(sql, params, (err, result) => {
-    if (err) throw err;
-    console.log(`Added ${params} to the database`);
+        const params = [answer.department_name];
+        db.query(sql, params, (err, result) => {
+            if (err) throw err;
+            console.log(`Added ${params} to the database`);
 
-        db.query(`SELECT * FROM department`, (err, result) => {
-            if (err) {
-                res.status(500).json({ error: err.message })
-                return;
-            }
-            console.table(result);
-            startPrompt();
+            db.query(`SELECT * FROM department`, (err, result) => {
+                if (err) {
+                    res.status(500).json({ error: err.message })
+                    return;
+                }
+                console.table(result);
+                startPrompt();
+            });
         });
     });
-});
 };
+
+// Add a role
+function addRole() {
+    inquirer.prompt([
+        {
+            name: "title",
+            type: "input",
+            message: "What is the name of the role?"
+        },
+        {
+            name: "salary",
+            type: "input",
+            message: "What is the salary of the role?",
+            validate: salary => {
+                if (isNaN(salary) || salary < 0) {
+                    return 'Please enter a number (no dots, spaces, commas)'
+                }
+                return true;
+            }
+        },
+        {
+            name: "department",
+            type: "list",
+            message: "Which department does the role belong to?",
+            choices: departments
+        }
+    ]).then(function (response) {
+        db.query("INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)", [response.title, response.salary, response.department], function (err, data) {
+            if (err) throw err;
+            console.log(`Adeed ${response.title} to the database`);
+
+            db.query(`SELECT * FROM role`, (err, result) => {
+                if (err) {
+                    res.status(500).json({ error: err.message })
+                    startPrompt();
+                }
+                console.table(result);
+                startPrompt();
+            });
+        })
+    });
+};
+
