@@ -251,35 +251,53 @@ function addEmployee() {
 
 // Update employee role
 function updateEmployeeRole() {
-    inquirer.prompt([
-        {
-            name: "first_name",
-            type: "list",
-            message: "Which employee's role do you want to update?",
-            choices: employees
-        },
-        {
-            name: "role_id",
-            type: "list",
-            message: "Which role do you want to assign the selected employee?",
-            choices: roles
-        }
-    ]).then(function (response) {
-        db.query("UPDATE employee SET role_id = ? WHERE first_name = ?", [response.role_id, response.first_name], function (err, data) {
+    let emplArray = []
+    let roleArray = []
+    db.query(`SELECT first_name, last_name FROM employee`,
+        (err, employeeData) => {
             if (err) throw err;
-            console.log("Updated employee's role");
-
-            db.query(`SELECT * FROM employee`, (err, result) => {
-                if (err) {
-                    res.status(500).json({ error: err.message })
-                    startPrompt();
-                }
-                console.table(result);
-                startPrompt();
+            // Fetch roles separately
+            db.query(`SELECT id, title FROM role`, (err, roleData) => {
+                if (err) throw err;
+                const roles = roleData.map(({ id, title }) => ({
+                    name: title,
+                    value: id,
+                }));
+                inquirer.prompt([
+                    {
+                        name: "employee",
+                        type: "list",
+                        message: "Which employee's role do you want to update?",
+                        choices() {
+                            employeeData.forEach(employee => {
+                                emplArray.push(`${employee.first_name} ${employee.last_name}`);
+                            });
+                            return emplArray;
+                        }
+                    },
+                    {
+                        name: "roles",
+                        type: "list",
+                        message: "Which role do you want to assign the selected employee?",
+                        choices: roles
+                    },
+                ]).then(function (response) {
+                    const selectedEmployee = response.employee;
+                    db.query(`UPDATE employee SET role_id = ? WHERE first_name = ? AND last_name = ?`,
+                        [response.roles, selectedEmployee.split(' ')[0], selectedEmployee.split(' ')[1]],
+                        (err, res) => {
+                            if (err) throw err;
+                            console.log(
+                                "------------------------------------------------------------------"
+                            );
+                            console.log("Updated employee's role");
+                            viewAllEmployees();
+                        }
+                    );
+                });
             });
-        })
-    });
-};
+        });
 
-// Call to start app
+}
+
 startPrompt();
