@@ -96,17 +96,17 @@ function viewAllRoles() {
 // View all employees
 function viewAllEmployees() {
     const sql = `SELECT employee.id,
-                employee.first_name,
-                employee.last_name,
-                role.title AS title,
-                department.department_name AS 'department',
-                role.salary
-                CONCAT(manager.first_name, ' ' ,manager.last_name) AS manager,
-                FROM employee
-                LEFT JOIN role ON employee.role_id = role.id
-                LEFT JOIN department ON role.department_id = department.id
-                LEFT JOIN employee AS manager ON employee.manager_id = manager.id
-                ORDER By employee.id`;
+    employee.first_name,
+    employee.last_name,
+    role.title AS title,
+    department.department_name AS department,
+    role.salary,
+    CONCAT(manager.first_name, ' ' ,manager.last_name) AS manager
+    FROM employee
+    LEFT JOIN role ON employee.role_id = role.id
+    LEFT JOIN department ON role.department_id = department.id
+    LEFT JOIN employee AS manager ON employee.manager_id = manager.id
+    ORDER By employee.id`;
     db.query(sql, (err, result) => {
         if (err) throw err;
         console.table(result);
@@ -189,42 +189,63 @@ function addRole() {
 function addEmployee() {
     inquirer.prompt([
         {
-            name: "first_name",
+            name: "firstName",
             type: "input",
             message: "What is the employee's first name?"
         },
         {
-            name: "last_name",
+            name: "lastName",
             type: "input",
             message: "What is the employee's last name?"
         },
-        {
-            name: "role_id",
-            type: "list",
-            message: "What is the employee's role?",
-            choices: roles
-        },
-        {
-            name: "manager_id",
-            type: "list",
-            message: "Whi is the employee's manager?",
-            choices: employees
-        }
 
     ]).then(function (response) {
-        db.query("INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)", [response.first_name, response.last_name, response.role_id, response.manager_id], function (err, data) {
-            if (err) throw err;
-            console.log(`Added ${response.first_name + response.last_name} to the database`);
-
-            db.query(`SELECT * FROM employee`, (err, result) => {
-                if (err) {
-                    res.status(500).json({ error: err.message })
-                    startPrompt();
-                }
-                console.table(result);
-                startPrompt();
+        const newby = [response.firstName, response.lastName];
+        const roleSql = `SELECT role.id, role.title FROM role`;
+        db.query(roleSql, (error, data) => {
+            if (error) throw error;
+            const roles = data.map(({ id, title }) => ({ name: title, value: id }));
+            inquirer.prompt([
+                {
+                    type: "list",
+                    name: "role",
+                    message: "What is the employee's role?",
+                    choices: roles,
+                },
+            ]).then((roleAnswer) => {
+                const role = roleAnswer.role;
+                newby.push(role);
+                const managerSql = `SELECT * FROM employee`;
+                db.query(managerSql, (error, data) => {
+                    if (error) throw error;
+                    const managers = data.map(({ id, first_name, last_name }) => ({
+                        name: first_name + " " + last_name,
+                        value: id,
+                    }));
+                    inquirer.prompt([
+                        {
+                            type: "list",
+                            name: "manager",
+                            message: "Who is the employee's manager?",
+                            choices: managers,
+                        },
+                    ]).then((managerAnswer) => {
+                        const manager = managerAnswer.manager;
+                        newby.push(manager);
+                        const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                                        VALUES (?, ?, ?, ?)`;
+                        db.query(sql, newby, (error) => {
+                            if (error) throw error;
+                            console.log(
+                                "------------------------------------------------------------------"
+                            );
+                            console.log(`Added ${response.firstName} to the database`);
+                            viewAllEmployees();
+                        });
+                    });
+                });
             });
-        })
+        });
     });
 };
 
@@ -260,3 +281,5 @@ function updateEmployeeRole() {
     });
 };
 
+// Call to start app
+startPrompt();
