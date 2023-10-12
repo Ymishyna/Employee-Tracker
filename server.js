@@ -35,7 +35,7 @@ function startPrompt() {
             'View All Roles',
             'Add Role',
             'View All Departments',
-            'Add A Department',
+            'Add Department',
             'Quit'],
     }).then(answer => {
         switch (answer.menu) {
@@ -61,7 +61,8 @@ function startPrompt() {
                 addDepartment();
                 break;
             case 'Quit':
-                quit();
+                console.log('Thankyou for using Employee-Tracker. Bye-Bye');
+                db.end();
                 break;
         }
     })
@@ -75,6 +76,9 @@ function viewAllDepartments() {
             res.status(500).json({ error: err.message })
             return;
         }
+        console.log(
+            "------------------------------------------------------------------"
+        );
         console.table(result);
         startPrompt();
     });
@@ -88,6 +92,9 @@ function viewAllRoles() {
             res.status(500).json({ error: err.message })
             return;
         }
+        console.log(
+            "------------------------------------------------------------------"
+        );
         console.table(result);
         startPrompt();
     });
@@ -109,81 +116,103 @@ function viewAllEmployees() {
     ORDER By employee.id`;
     db.query(sql, (err, result) => {
         if (err) throw err;
+        console.log(
+            "------------------------------------------------------------------"
+        );
         console.table(result);
         startPrompt();
     });
 };
 
-// Add departments
+// Add department
 function addDepartment() {
     inquirer.prompt([
         {
             name: "department_name",
             type: "input",
-            message: "What is the name of the departmwnt?"
+            message: "What is the name of the department?"
         }
     ]).then((answer) => {
+        const departmentName = answer.department_name;
 
-        const sql = `INSERT INTO department (department_name)
-                VALUES (?)`;
-        const params = [answer.department_name];
+        const sql = "INSERT INTO department (department_name) VALUES (?)"; // Use correct SQL syntax
+        const params = [departmentName];
+
         db.query(sql, params, (err, result) => {
-            if (err) throw err;
-            console.log(`Added ${params} to the database`);
+            if (err) {
+                console.error('Error:', err);
+                return;
+            }
 
-            db.query(`SELECT * FROM department`, (err, result) => {
+            console.log(`Added ${departmentName} to the database`);
+
+            // Retrieve and display updated de partments list 
+            db.query(`SELECT * FROM department`, (err, departments) => {
                 if (err) {
-                    res.status(500).json({ error: err.message })
-                    return;
+                    console.error('Error:', err);
+                } else {
+                    console.log(
+                        "------------------------------------------------------------------"
+                    );
+                    console.log('Updated list of departments:');
+                    console.table(departments);
                 }
-                console.table(result);
                 startPrompt();
             });
         });
     });
-};
+}
 
-// Add a role
+// Add role
 function addRole() {
-    inquirer.prompt([
-        {
-            name: "title",
-            type: "input",
-            message: "What is the name of the role?"
-        },
-        {
-            name: "salary",
-            type: "input",
-            message: "What is the salary of the role?",
-            validate: salary => {
-                if (isNaN(salary) || salary < 0) {
-                    return 'Please enter a number (no dots, spaces, commas)'
-                }
-                return true;
-            }
-        },
-        {
-            name: "department_id",
-            type: "list",
-            message: "Which department does the role belong to?",
-            choices: departments
-        }
-    ]).then(function (response) {
-        db.query("INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)", [response.title, response.salary, response.department], function (err, data) {
+    db.query(
+        'SELECT * FROM department', (err, result) => {
             if (err) throw err;
-            console.log(`Added ${response.title} to the database`);
-
-            db.query(`SELECT * FROM role`, (err, result) => {
-                if (err) {
-                    res.status(500).json({ error: err.message })
-                    startPrompt();
+            const departments = result.map(department => department.department_name);
+            inquirer.prompt([
+                {
+                    name: "title",
+                    type: "input",
+                    message: "What is the name of the role?"
+                },
+                {
+                    name: "salary",
+                    type: "input",
+                    message: "What is the salary of the role? (Enter a valid decimal number)",
+                    validate: function (input) {
+                        if (!/^\d+(\.\d{1,2})?$/.test(input)) {
+                            return 'Please enter a valid decimal number (e.g., 5000.50)';
+                        }
+                        return true;
+                    }
+                },
+                {
+                    name: "department",
+                    type: "list",
+                    message: "Which department does the role belong to?",
+                    choices: departments
                 }
-                console.table(result);
-                startPrompt();
+            ]).then(function (res) {
+                const title = res.title;
+                const salary = parseFloat(res.salary);
+                const department = res.department;
+                const department_id = departments.indexOf(department) + 1;
+                db.query(
+                    `INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)`,
+                    [title, salary, department_id],
+                    (err, result) => {
+                        if (err) throw err;
+                        console.log(
+                            "------------------------------------------------------------------"
+                        );
+                        console.log(`Added ${title} to the database`);
+                        viewAllRoles();
+                    }
+                );
             });
-        })
-    });
-};
+        }
+    );
+}
 
 // Add employees
 function addEmployee() {
